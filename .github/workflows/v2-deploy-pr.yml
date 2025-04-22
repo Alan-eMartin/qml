@@ -1,0 +1,27 @@
+name: V2 Deploy PR
+
+on:
+  workflow_run:
+    workflows:
+      - ./.github/workflows/v2-build-pr.yml
+    types:
+      - completed
+
+permissions:
+  actions: read
+  pull-requests: read
+  contents: read  
+
+concurrency:
+  group: deploy-v2-demos-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview-demos:
+    uses: ./.github/workflows/v2-deploy-demos.yml
+    with:
+      environment: 'swc-staging' # Update this to production later if needed
+      artifact-name: demo-build-${{ github.event.workflow_run.head_sha }}
+      preview: true
+      branch: ${{ github.event.workflow_run.head_branch }}
+    secrets: inherit
