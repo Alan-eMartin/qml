@@ -56,7 +56,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create Build Info Artifact
+      - name: Save Build Info Artifact
+        if: github.event_name == 'pull_request'
         run: |
           echo "PR_NUMBER=${{ github.event.pull_request.number }}" > build-info.txt
           echo "UPDATED_DEMOS=${{ needs.identify-changed-demos.outputs.updated }}" >> build-info.txt
@@ -71,5 +72,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-info
-          path: build-info.txt
-          retention-days: 1
+          path: /tmp/build-info
+          retention-days: 30
