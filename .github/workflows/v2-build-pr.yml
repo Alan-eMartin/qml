@@ -49,29 +49,27 @@ jobs:
       keep-going: false
       quiet: false
       batch_size: 10
-  
-  # If successful, save the PR number to a artifact called demo-build-pr-number
-  upload:
-    needs: build-updated-demos
-    runs-on: ubuntu-latest
-    steps:
-      - name: Save Demo Build PR Number
-        id: save-pr-number
-        env:
-          PR_NUMBER: ${{ github.event.number }}
-        run: |
-          mkdir -p ./pr
-          echo $PR_NUMBER > ./pr/pr_number
-      - uses: actions/upload-artifact@v4
-        with:
-          name: pr_number
-          path: pr/
 
-      - name: Print PR Number from Artifact
-        id: print-pr-number
+  save-pr-info:
+    runs-on: ubuntu-latest
+    needs: [identify-changed-demos, build-updated-demos]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Save PR info
+        id: save-pr-info
         run: |
-          echo "PR Number: ${{ steps.save-pr-number.outputs.PR_NUMBER }}"
-          echo "PR Number from Artifact: $(cat ./pr/pr_number)"
-          echo "PR Number from Artifact (without quotes): $(cat ./pr/pr_number | tr -d '\"')"
-          echo "PR Number from Artifact (without quotes): ${{ steps.save-pr-number.outputs.PR_NUMBER }}"
-          
+            echo "Saving PR info to artifact"
+            mkdir -p pr-info
+            echo "{
+            \"pr_number\": \"${{ github.event.pull_request.number }}\",
+            \"slugs\": [$(echo '${{ needs.identify-changed-demos.outputs.updated }}' | sed 's/ /", "/g' | sed 's/^/"/' | sed 's/}$/}/')]
+            }" > pr-info/pr-info.json
+            echo "PR info saved to pr-info/pr-info.json"
+
+      - name: Upload PR info
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-info
+          path: pr-info/pr-info.json

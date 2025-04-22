@@ -17,11 +17,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy-preview-demos:
-    uses: ./.github/workflows/v2-deploy-demos.yml
-    with:
-      environment: 'swc-staging' # Update this to production later if needed
-      artifact-name: demo-build-${{ github.event.workflow_run.head_sha }}
-      preview: true
-      branch: ${{ github.event.workflow_run.head_branch }}
-    secrets: inherit
+  create-pr-comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download PR info
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-info
+          path: pr-info/pr-info.json
+
+      - name: Read PR info
+        run: |
+            echo "Reading PR info"
+            cat pr-info.json
+      
+      - name: Set PR info
+        id: set-pr-info
+        run: |
+            echo "Setting V2 Build PR info"
+            echo "PR_NUMBER=$(jq -r '.pr_number' pr-info.json)" >> $GITHUB_ENV
+            echo "SLUGS=$(jq -r '.slugs | join(",")' pr-info.json)" >> $GITHUB_ENV
+          
+      - name: Create PR comment
+        id: create-comment
+        run: |
+            echo "Creating PR comment"
+            echo "## Your PR Preview(s) have been deployed for the following demos:" > pr-comment.md
+            echo "" >> pr-comment.md
+            IFS=',' read -ra SLUGS <<< "$SLUGS"
+            for slug in "${SLUGS[@]}"; do
+                echo "- [https://www.pennylane.ai/qml/demo/$slug?preview=true](https://www.pennylane.ai/qml/demo/$slug?preview=true)" >> pr-comment.md
+            done
+            echo "" >> pr-comment.md
+            echo "Please check them out and let us know if you have any feedback!" >> pr-comment.md
+        
+      - name: Comment on PR
+        if: github.event.workflow_run.event == 'completed'
+        uses: XanaduAI/cloud-actions/create-and-update-pull-request-comment@main
+        with:
+          github_token: ${{ github.token}}
+          pull_request_number: ${{ env.PR_NUMBER }}
+          comment_body: |
+            $(cat pr-comment.md)
