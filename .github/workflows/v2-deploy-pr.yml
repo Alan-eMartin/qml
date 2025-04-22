@@ -3,7 +3,7 @@ name: V2 Deploy PR
 on:
   workflow_run:
     workflows:
-      - ./.github/workflows/v2-build-pr.yml
+      - "V2 Build PR"
     types:
       - completed
 
