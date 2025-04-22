@@ -5,6 +5,7 @@ r"""
 Quantum advantage with Gaussian Boson Sampling
 ==============================================
 
+
 .. meta::
     :property="og:description": Using light to perform tasks beyond the reach of classical computers.
 
