@@ -18,7 +18,9 @@ Quantum advantage with Gaussian Boson Sampling
     qonn Optimizing a quantum optical neural network
     tutorial_photonics Photonic quantum computers
 
-*Authors: Josh Izaac and Nathan Killoran — Posted: 04 December 2020. Last updated: 04 December 2020.*
+*Authors: Josh Izaac and Nathan Killoran — Posted: 04 December 2020. Last updated: 04 December 2020.*]
+
+I am a new line
 
 .. warning::
     This demo is only compatible with PennyLane version ``0.29`` or below.
