@@ -1,11 +1,10 @@
 name: V2 Build PR
 
 on:
-  # All pull requests to any branch
   pull_request:
-    types: [opened, synchronize, reopened]
-    branches:
-      - '**'
+    # The branches setting determines which branches the workflow will run on.
+    branches: [master, dev]
+
 permissions:
   contents: read
 
