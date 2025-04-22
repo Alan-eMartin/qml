@@ -1,9 +1,11 @@
 name: V2 Build PR
 
 on:
+  # All pull requests to any branch
   pull_request:
-    branches: [master, dev, sc-85409-v-demos-are-built-on-pull-request]
-
+    types: [opened, synchronize, reopened]
+    branches:
+      - '**'
 permissions:
   contents: read
 
