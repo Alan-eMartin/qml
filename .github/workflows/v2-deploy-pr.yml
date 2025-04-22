@@ -1,15 +1,5 @@
 name: V2 Deploy PR
 
-# EXAMPLE ARTIFACT FOR build-info.txt
-# PR_NUMBER=1
-# UPDATED_DEMOS=gbs-copy gbs
-# DELETED_DEMOS=
-# BUILD_ID=14603073095
-# BRANCH=test-build-deploy-trigger
-# COMMIT_SHA=7fb5b4332416825c4ce55ea3fe275a941be7f6aa
-# COMMIT_MESSAGE=create copy for testing purpose
-# COMMIT_URL=https://github.com/Alan-eMartin/qml/pull/1
-
 on:
   workflow_run:
     workflows:
@@ -28,38 +18,66 @@ concurrency:
 
 jobs:
   retrieve-build-info:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout`
         uses: actions/checkout@v4
 
-      - name: Download Build Info Artifacts
-        uses: actions/download-artifact@v4
+      - name: Download Build Context
+        uses: XanaduAI/cloud-actions/download-github-workflow-artifact@main
         with:
-          name: build-info
-          path: build-info.txt
+          workflow_run_id: ${{ github.event.workflow_run.id }}
+          artifact_name_regex: '^build-info$'
+          github_token: ${{ github.token }}
 
-      - name: Extract Build Info
-        id: extract-build-info
+      # If file is missing, then likely the PR build was skipped
+      - name: Check if Build Context file exists
+        id: build_context
+        env:
+          context_artifact_file_name: build-info.zip
         run: |
-          echo "PR_NUMBER=$(grep 'PR_NUMBER' build-info.txt | cut -d '=' -f2)" >> $GITHUB_ENV
-          echo "UPDATED_DEMOS=$(grep 'UPDATED_DEMOS' build-info.txt | cut -d '=' -f2)" >> $GITHUB_ENV
-          echo "COMMIT_SHA=$(grep 'COMMIT_SHA' build-info.txt | cut -d '=' -f2)" >> $GITHUB_ENV
+          if test -f "$context_artifact_file_name"; then
+            echo "result=$context_artifact_file_name" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Unpack Build Information
+        if: steps.build_context.outputs.result != ''
+        run: |
+          unzip ${{ steps.build_context.outputs.result }}
+
+      - name: Read Build Information
+        id: read_build_info
+        if: steps.build_context.outputs.result != ''
+        uses: actions/github-script@v6
+        # The build info is a txt file that is similar to env file
+        # PR_NUMBER=1234
+        # UPDATED_DEMOS=demo1 demo2
+        # COMMIT_SHA=abcd1234
+        with:
+          script: |
+            const fs = require('fs');
+            const buildData = fs.readFileSync('build-info.txt', 'utf8');
+            const lines = buildData.split('\n');
+            const buildInfo = {};
+            for (const line of lines) {
+              const [key, value] = line.split('=');
+              if (key && value) {
+                buildInfo[key.trim()] = value.trim();
+              }
+            }
+            return buildInfo;
 
       - name: Create PR comment
         id: create-pr-comment
-        env:
-          PR_NUMBER: ${{ env.PR_NUMBER }}
-          UPDATED_DEMOS: ${{ env.UPDATED_DEMOS }}
-          COMMIT_SHA: ${{ env.COMMIT_SHA }}
         run: |
-          echo "Creating PR comment for PR #${{ env.PR_NUMBER }}"
+          echo "Creating PR comment for PR #${{ steps.read_build_info.outputs.result.PR_NUMBER }}"
           echo "## Build Info" > pr-comment.md
           echo "### Updated Demos" >> pr-comment.md
           echo "<details>" >> pr-comment.md
           echo "<summary>Click to see all demo previews</summary>" >> pr-comment.md
           echo "" >> pr-comment.md
-          IFS=' ' read -r -a demos <<< "${{ env.UPDATED_DEMOS }}"
+          IFS=' ' read -r -a demos <<< "${{ steps.read_build_info.outputs.result.UPDATED_DEMOS }}"
           for demo in "${demos[@]}"; do
             echo "- [${demo}](https://pennylane.ai/qml/demos/${demo}?preview=true)" >> pr-comment.md
           done
@@ -67,9 +85,7 @@ jobs:
 
       - name: Comment on PR
         uses: XanaduAI/cloud-actions/create-and-update-pull-request-comment@main
-        env:
-          PR_NUMBER: ${{ env.PR_NUMBER }}
         with:
           github_token: ${{ github.token }}
-          pull_request_number: ${{ env.PR_NUMBER }}
+          pull_request_number: ${{ steps.read_build_info.outputs.result.PR_NUMBER }}
           comment_body: $(cat pr-comment.md)
