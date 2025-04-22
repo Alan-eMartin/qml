@@ -59,8 +59,8 @@ jobs:
       - name: Create PR Info Artifact
         run: |
           echo "PR_NUMBER=${{ github.event.pull_request.number }}" > pr-info.txt
-          echo "SLUGS=${{ needs.identify-changed-demos.outputs.updated }}" >> pr-info.txt
-          echo "DELETED=${{ needs.identify-changed-demos.outputs.deleted }}" >> pr-info.txt
+          echo "UPDATED_DEMOS=${{ needs.identify-changed-demos.outputs.updated }}" >> pr-info.txt
+          echo "DELETED_DEMOS=${{ needs.identify-changed-demos.outputs.deleted }}" >> pr-info.txt
           echo "BUILD_ID=${{ github.run_id }}" >> pr-info.txt
           echo "BRANCH=${{ github.event.pull_request.head.ref }}" >> pr-info.txt
           echo "COMMIT_SHA=${{ github.event.pull_request.head.sha }}" >> pr-info.txt
@@ -72,26 +72,4 @@ jobs:
         with:
           name: pr-info
           path: pr-info.txt
-          retention-days: 1
-
-      - name: Create PR Comment Artifact
-        id: create-comment
-        run: |
-          echo "## Your PR Preview(s) have been deployed for the following demos:" > pr-comment.md
-          echo "" >> pr-comment.md
-          IFS=',' read -ra SLUGS <<< "${{ needs.identify-changed-demos.outputs.updated }}"
-          echo "<details>" >> pr-comment.md
-          echo "<summary>Demo Previews</summary>" >> pr-comment.md
-          echo "" >> pr-comment.md
-          for slug in "${SLUGS[@]}"; do
-              echo "- [https://www.pennylane.ai/qml/demo/$slug?preview=true](https://www.pennylane.ai/qml/demo/$slug?preview=true)" >> pr-comment.md
-          done
-          echo "" >> pr-comment.md
-          echo "</details>" >> pr-comment.md
-
-      - name: Upload PR Comment Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr-comment
-          path: pr-comment.md
           retention-days: 1
