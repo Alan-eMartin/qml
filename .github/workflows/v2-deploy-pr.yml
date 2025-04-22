@@ -37,7 +37,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: build-info
-          path: pr-info.txt
+          path: build-info.txt
 
       - name: Extract Build Info
         id: extract-build-info

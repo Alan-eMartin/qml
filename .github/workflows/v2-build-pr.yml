@@ -56,20 +56,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create PR Info Artifact
+      - name: Create Build Info Artifact
         run: |
-          echo "PR_NUMBER=${{ github.event.pull_request.number }}" > pr-info.txt
-          echo "UPDATED_DEMOS=${{ needs.identify-changed-demos.outputs.updated }}" >> pr-info.txt
-          echo "DELETED_DEMOS=${{ needs.identify-changed-demos.outputs.deleted }}" >> pr-info.txt
-          echo "BUILD_ID=${{ github.run_id }}" >> pr-info.txt
-          echo "BRANCH=${{ github.event.pull_request.head.ref }}" >> pr-info.txt
-          echo "COMMIT_SHA=${{ github.event.pull_request.head.sha }}" >> pr-info.txt
-          echo "COMMIT_MESSAGE=${{ github.event.pull_request.title }}" >> pr-info.txt
-          echo "COMMIT_URL=${{ github.event.pull_request.html_url }}" >> pr-info.txt
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" > build-info.txt
+          echo "UPDATED_DEMOS=${{ needs.identify-changed-demos.outputs.updated }}" >> build-info.txt
+          echo "DELETED_DEMOS=${{ needs.identify-changed-demos.outputs.deleted }}" >> build-info.txt
+          echo "BUILD_ID=${{ github.run_id }}" >> build-info.txt
+          echo "BRANCH=${{ github.event.pull_request.head.ref }}" >> build-info.txt
+          echo "COMMIT_SHA=${{ github.event.pull_request.head.sha }}" >> build-info.txt
+          echo "COMMIT_MESSAGE=${{ github.event.pull_request.title }}" >> build-info.txt
+          echo "COMMIT_URL=${{ github.event.pull_request.html_url }}" >> build-info.txt
         
-      - name: Upload PR Info Artifact
+      - name: Upload Build Info Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pr-info
-          path: pr-info.txt
+          name: build-info
+          path: build-info.txt
           retention-days: 1
