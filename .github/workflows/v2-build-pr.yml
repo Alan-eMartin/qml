@@ -2,7 +2,6 @@ name: V2 Build PR
 
 on:
   pull_request:
-    # The branches setting determines which branches the workflow will run on.
     branches: [master, dev]
 
 permissions:
@@ -50,26 +49,49 @@ jobs:
       quiet: false
       batch_size: 10
 
-  save-pr-info:
+  save-build-info-artifacts:
     runs-on: ubuntu-latest
     needs: [identify-changed-demos, build-updated-demos]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Save PR info
-        id: save-pr-info
+      - name: Create PR Info Artifact
         run: |
-            echo "Saving PR info to artifact"
-            mkdir -p pr-info
-            echo "{
-            \"pr_number\": \"${{ github.event.pull_request.number }}\",
-            \"slugs\": [$(echo '${{ needs.identify-changed-demos.outputs.updated }}' | sed 's/ /", "/g' | sed 's/^/"/' | sed 's/}$/}/')]
-            }" > pr-info/pr-info.json
-            echo "PR info saved to pr-info/pr-info.json"
-
-      - name: Upload PR info
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" > pr-info.txt
+          echo "SLUGS=${{ needs.identify-changed-demos.outputs.updated }}" >> pr-info.txt
+          echo "DELETED=${{ needs.identify-changed-demos.outputs.deleted }}" >> pr-info.txt
+          echo "BUILD_ID=${{ github.run_id }}" >> pr-info.txt
+          echo "BRANCH=${{ github.event.pull_request.head.ref }}" >> pr-info.txt
+          echo "COMMIT_SHA=${{ github.event.pull_request.head.sha }}" >> pr-info.txt
+          echo "COMMIT_MESSAGE=${{ github.event.pull_request.title }}" >> pr-info.txt
+          echo "COMMIT_URL=${{ github.event.pull_request.html_url }}" >> pr-info.txt
+        
+      - name: Upload PR Info Artifact
         uses: actions/upload-artifact@v4
         with:
           name: pr-info
-          path: pr-info/pr-info.json
+          path: pr-info.txt
+          retention-days: 1
+
+      - name: Create PR Comment Artifact
+        id: create-comment
+        run: |
+          echo "## Your PR Preview(s) have been deployed for the following demos:" > pr-comment.md
+          echo "" >> pr-comment.md
+          IFS=',' read -ra SLUGS <<< "${{ needs.identify-changed-demos.outputs.updated }}"
+          echo "<details>" >> pr-comment.md
+          echo "<summary>Demo Previews</summary>" >> pr-comment.md
+          echo "" >> pr-comment.md
+          for slug in "${SLUGS[@]}"; do
+              echo "- [https://www.pennylane.ai/qml/demo/$slug?preview=true](https://www.pennylane.ai/qml/demo/$slug?preview=true)" >> pr-comment.md
+          done
+          echo "" >> pr-comment.md
+          echo "</details>" >> pr-comment.md
+
+      - name: Upload PR Comment Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-comment
+          path: pr-comment.md
+          retention-days: 1
