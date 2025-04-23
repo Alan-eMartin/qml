@@ -88,6 +88,25 @@ jobs:
     needs: prepare-build-context
     if: needs.prepare-build-context.outputs != '' && github.event.workflow_run.event == 'pull_request'
     steps:
+      - name: Create markdown for comment
+        id: create-markdown
+        run: |
+          echo "## Updated Demos" > comment.md
+          echo "" >> comment.md
+          echo "{% set updated_demos_list = needs.prepare-build-context.outputs.updated_demos.split() %}" >> comment.md
+          echo "{% if updated_demos_list %}" >> comment.md
+          echo "{% for demo in updated_demos_list %}" >> comment.md
+          echo "- [{{ demo }}](https://pennylane.ai/qml/demos/{{ demo }}?preview=true)" >> comment.md
+          echo "{% endfor %}" >> comment.md
+          echo "{% else %}" >> comment.md
+          echo "No demos were updated." >> comment.md
+          echo "{% endif %}" >> comment.md
+          echo "" >> comment.md
+          echo "## Deleted Demos" >> comment.md
+          echo "${{ needs.prepare-build-context.outputs.deleted_demos }}" >> comment.md
+          echo "" >> comment.md
+          
+
       - name: Comment on PR
         id: comment-on-pr
         uses: XanaduAI/cloud-actions/create-and-update-pull-request-comment@main
@@ -95,16 +114,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pull_request_number: ${{ needs.prepare-build-context.outputs.pr_id }}
-          comment_body: |
-            ## Updated Demos
-            {% set updated_demos_list = needs.prepare-build-context.outputs.updated_demos.split() %}
-            {% if updated_demos_list %}
-            {% for demo in updated_demos_list %}
-            - [{{ demo }}](https://pennylane.ai/qml/demos/{{ demo }}?preview=true)
-            {% endfor %}
-            {% else %}
-            No demos were updated.
-            {% endif %}
-
-            ## Deleted Demos
-            ${{ needs.prepare-build-context.outputs.deleted_demos }}
+          comment_body: "$(cat comment.md)"
