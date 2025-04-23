@@ -96,31 +96,31 @@ jobs:
   post-pr-comment:
     runs-on: ubuntu-latest
     needs: prepare-build-context
-    if: ${{ github.event_name == 'workflow_run' && needs.prepare-build-context.result == 'success' }}
+    if: needs.prepare-build-context.outputs != '' && github.event.workflow_run.event == 'pull_request'
     steps:
-      - name: Create comment markdown
-        id: create-comment
+      - name: Create demo links comment
+        id: create-demo-links
         run: |
-          echo "### Your PR preview(s) is ready!" > comment.md
-          echo "You can view your preview(s) at the following link(s):" >> comment.md
-          echo "" >> comment.md
-          echo "#### Updated Demos" >> comment.md
-          echo "" >> comment.md
+          updated_demos="${{ needs.prepare-build-context.outputs.updated_demos }}"
+          
+          echo "## Demo Preview(s)" > comment.md
           echo "<details>" >> comment.md
           echo "<summary>Click to expand</summary>" >> comment.md
           echo "" >> comment.md
-          for demo in $(echo "${{ needs.prepare-build-context.outputs.updated_demos }}" | jq -r '.[]' || echo ""); do
-            echo "* [${demo}](https://pennylane.ai/qml/demos/${demo}?preview=true)" >> comment.md
+          
+          for demo in $updated_demos; do
+            echo "- [${demo}](https://demos.example.com/${demo})" >> comment.md
           done
+
           echo "" >> comment.md
           echo "</details>" >> comment.md
-          echo "" >> comment.md
-          echo "comment_body=$(cat comment.md)" >> $GITHUB_OUTPUT
-
+          
       - name: Comment on PR
         id: comment-on-pr
         uses: XanaduAI/cloud-actions/create-and-update-pull-request-comment@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pull_request_number: ${{ needs.prepare-build-context.outputs.pr_id }}
-          comment_body: ${{ steps.create-comment.outputs.comment_body }}
+          comment_body: |
+            ${{ steps.create-demo-links.outputs.comment }}
+            
