@@ -96,7 +96,7 @@ jobs:
   post-pr-comment:
     runs-on: ubuntu-latest
     needs: prepare-build-context
-    if: github.event.workflow_run.event == 'pull_request' && needs.prepare-build-context.outputs != ''
+    if: ${{ github.event_name == 'workflow_run' && needs.prepare-build-context.result == 'success' }}
     steps:
       - name: Create comment markdown
         id: create-comment
@@ -109,17 +109,18 @@ jobs:
           echo "<details>" >> comment.md
           echo "<summary>Click to expand</summary>" >> comment.md
           echo "" >> comment.md
-          for demo in $(echo "${{ needs.prepare-build-context.outputs.updated_demos }}" | jq -r '.[]'); do
+          for demo in $(echo "${{ needs.prepare-build-context.outputs.updated_demos }}" | jq -r '.[]' || echo ""); do
             echo "* [${demo}](https://pennylane.ai/qml/demos/${demo}?preview=true)" >> comment.md
           done
           echo "" >> comment.md
           echo "</details>" >> comment.md
           echo "" >> comment.md
+          echo "comment_body=$(cat comment.md)" >> $GITHUB_OUTPUT
 
       - name: Comment on PR
         id: comment-on-pr
         uses: XanaduAI/cloud-actions/create-and-update-pull-request-comment@main
         with:
-          github_token: ${{ github.token }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           pull_request_number: ${{ needs.prepare-build-context.outputs.pr_id }}
-          comment_body: "$(cat comment.md)"
+          comment_body: ${{ steps.create-comment.outputs.comment_body }}
