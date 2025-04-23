@@ -36,9 +36,10 @@ jobs:
           echo "No changes found in demos. Exiting workflow."
           exit 1
 
-  build-updated-demos:
+  build:
     uses: ./.github/workflows/v2-build-demos.yml
-    needs: identify-changed-demos
+    needs:
+      - identify-changed-demos
     with:
       ref: ${{ github.event.pull_request.head.sha }}
       demo-names: ${{ needs.identify-changed-demos.outputs.updated }}
@@ -49,28 +50,31 @@ jobs:
       quiet: false
       batch_size: 10
 
-  save-build-info-artifacts:
-    runs-on: ubuntu-latest
-    needs: [identify-changed-demos, build-updated-demos]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  save-build-context:
+    runs-on: ubuntu-latestXW
+    needs:
+      - build
+      - identify-changed-demos
 
-      - name: Save Build Info Artifact
+    steps:
+      - name: Save Pull Request Event Context
         if: github.event_name == 'pull_request'
         run: |
-          echo "PR_NUMBER=${{ github.event.pull_request.number }}" > build-info.txt
-          echo "UPDATED_DEMOS=${{ needs.identify-changed-demos.outputs.updated }}" >> build-info.txt
-          echo "DELETED_DEMOS=${{ needs.identify-changed-demos.outputs.deleted }}" >> build-info.txt
-          echo "BUILD_ID=${{ github.run_id }}" >> build-info.txt
-          echo "BRANCH=${{ github.event.pull_request.head.ref }}" >> build-info.txt
-          echo "COMMIT_SHA=${{ github.event.pull_request.head.sha }}" >> build-info.txt
-          echo "COMMIT_MESSAGE=${{ github.event.pull_request.title }}" >> build-info.txt
-          echo "COMMIT_URL=${{ github.event.pull_request.html_url }}" >> build-info.txt
-        
-      - name: Upload Build Info Artifact
+          mkdir -p /tmp/pr
+          cat >/tmp/pr/pr_info.json <<EOL
+          {
+            "id": "${{ github.event.pull_request.number }}",
+            "ref": "${{ github.event.pull_request.head.sha }}",
+            "ref_name": "${{ github.event.pull_request.head.ref }}",
+            "updated_demos": "${{ needs.identify-changed-demos.outputs.updated }}",
+            "deleted_demos": "${{ needs.identify-changed-demos.outputs.deleted }}"
+          }
+          EOL
+
+      - name: Upload Pull Request Event Context as Artifact
+        if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: build-info
-          path: /tmp/build-info
+          name: pr_info
+          path: /tmp/pr
           retention-days: 30

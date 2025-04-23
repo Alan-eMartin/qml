@@ -17,30 +17,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  retrieve-build-info:
-    if: github.event.workflow_run.conclusion == 'success'
+  deploy:
     runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: Checkout`
-        uses: actions/checkout@v4
-
       - name: Download Build Context
         uses: XanaduAI/cloud-actions/download-github-workflow-artifact@main
         with:
           workflow_run_id: ${{ github.event.workflow_run.id }}
-          artifact_name_regex: '^build-info$'
+          artifact_name_regex: '^pr_info$'
           github_token: ${{ github.token }}
 
-      # If file is missing, then likely the PR build was skipped
       - name: Check if Build Context file exists
         id: build_context
         env:
-          context_artifact_file_name: build-info.zip
+          context_artifact_file_name: pr_info.zip
         run: |
           if test -f "$context_artifact_file_name"; then
             echo "result=$context_artifact_file_name" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Unpack Build Information
         if: steps.build_context.outputs.result != ''
         run: |
@@ -50,42 +46,52 @@ jobs:
         id: read_build_info
         if: steps.build_context.outputs.result != ''
         uses: actions/github-script@v6
-        # The build info is a txt file that is similar to env file
-        # PR_NUMBER=1234
-        # UPDATED_DEMOS=demo1 demo2
-        # COMMIT_SHA=abcd1234
         with:
           script: |
-            const fs = require('fs');
-            const buildData = fs.readFileSync('build-info.txt', 'utf8');
-            const lines = buildData.split('\n');
-            const buildInfo = {};
-            for (const line of lines) {
-              const [key, value] = line.split('=');
-              if (key && value) {
-                buildInfo[key.trim()] = value.trim();
-              }
-            }
-            return buildInfo;
+            let fs = require('fs');
+            const buildData = fs.readFileSync('pr_info.json');
+            return JSON.parse(buildData);
 
-      - name: Create PR comment
-        id: create-pr-comment
+      - name: Parse Pull Request Event Information
+        id: pr_info
+        if: github.event.workflow_run.event == 'pull_request' && steps.build_context.outputs.result != ''
         run: |
-          echo "Creating PR comment for PR #${{ steps.read_build_info.outputs.result.PR_NUMBER }}"
-          echo "## Build Info" > pr-comment.md
-          echo "### Updated Demos" >> pr-comment.md
-          echo "<details>" >> pr-comment.md
-          echo "<summary>Click to see all demo previews</summary>" >> pr-comment.md
-          echo "" >> pr-comment.md
-          IFS=' ' read -r -a demos <<< "${{ steps.read_build_info.outputs.result.UPDATED_DEMOS }}"
-          for demo in "${demos[@]}"; do
-            echo "- [${demo}](https://pennylane.ai/qml/demos/${demo}?preview=true)" >> pr-comment.md
-          done
-          echo "</details>" >> pr-comment.md
+          PR_ID=$(echo '${{ steps.read_build_info.outputs.result }}' | jq '.id')
+          PR_ID_NO_QUOTE="${PR_ID%\"}"
+          PR_ID_NO_QUOTE="${PR_ID_NO_QUOTE#\"}"
+          echo "pr_id => $PR_ID_NO_QUOTE"
+          echo "pr_id=$PR_ID_NO_QUOTE" >> $GITHUB_OUTPUTx
 
-      - name: Comment on PR
-        uses: XanaduAI/cloud-actions/create-and-update-pull-request-comment@main
+          PR_REF=$(echo '${{ steps.read_build_info.outputs.result }}' | jq '.ref')
+          PR_REF_NO_QUOTE="${PR_REF%\"}"
+          PR_REF_NO_QUOTE="${PR_REF_NO_QUOTE#\"}"
+          echo "pr_ref => $PR_REF_NO_QUOTE"
+          echo "pr_ref=$PR_REF_NO_QUOTE" >> $GITHUB_OUTPUT
+          
+          PR_REF_NAME=$(echo '${{ steps.read_build_info.outputs.result }}' | jq '.ref_name')
+          PR_REF_NAME_NO_QUOTE="${PR_REF_NAME%\"}"
+          PR_REF_NAME_NO_QUOTE="${PR_REF_NAME_NO_QUOTE#\"}"
+          echo "pr_ref_name => $PR_REF_NAME_NO_QUOTE"
+          echo "pr_ref_name=$PR_REF_NAME_NO_QUOTE" >> $GITHUB_OUTPUT
+
+          UPDATED_DEMOS=$(echo '${{ steps.read_build_info.outputs.result }}' | jq '.updated_demos')
+          DELETED_DEMOS=$(echo '${{ steps.read_build_info.outputs.result }}' | jq '.deleted_demos')
+          echo "updated_demos => $UPDATED_DEMOS"
+          echo "deleted_demos => $DELETED_DEMOS"
+
+      - name: Upsert demos
+        uses: ./.github/workflows/v2-deploy-demos.yml
         with:
-          github_token: ${{ github.token }}
-          pull_request_number: ${{ steps.read_build_info.outputs.result.PR_NUMBER }}
-          comment_body: $(cat pr-comment.md)
+          environment: 'swc-staging' # Update this to production later if needed
+          artifact-name: demo-build-${{ steps.pr_info.outputs.pr_ref }}
+          preview: true
+          branch: ${{ steps.pr_info.outputs.pr_ref_name }}
+          secrets: inherit
+
+      - name: log updated and deleted demos for testing
+        run: |
+          echo "Updated Demos: ${{ steps.pr_info.outputs.updated_demos }}"
+          echo "Deleted Demos: ${{ steps.pr_info.outputs.deleted_demos }}"
+          echo "PR ID: ${{ steps.pr_info.outputs.pr_id }}"
+          echo "PR Ref: ${{ steps.pr_info.outputs.pr_ref }}"
+          echo "PR Ref Name: ${{ steps.pr_info.outputs.pr_ref_name }}"
