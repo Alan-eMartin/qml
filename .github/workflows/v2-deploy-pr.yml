@@ -17,6 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Step 1: Prepare the build context
   prepare-build-context:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success'
@@ -82,13 +83,15 @@ jobs:
       pr_ref_name: ${{ steps.set_job_outputs.outputs.pr_ref_name }}
       updated_demos: ${{ steps.set_job_outputs.outputs.updated_demos }}
       deleted_demos: ${{ steps.set_job_outputs.outputs.deleted_demos }}
-  
-  
 
+  # Step 2: Deploy the demos to SWC
+  # To be added later
+
+  # Step 3: Generate a comment with the demo names
   generate-comment:
     runs-on: ubuntu-latest
     needs: prepare-build-context
-    if: github.event.workflow_run.event == 'pull_request' && needs.prepare-build-context.outputs != ''
+    if: github.event.workflow_run.event == 'pull_request' && needs.prepare-build-context.outputs.pr_id != ''
     steps:
       - name: Create markdown comment from demo names
         id: generate-markdown
@@ -105,6 +108,7 @@ jobs:
 
           comment+="</details>"
 
+          # Set the markdown as an output variable
           echo "::set-output name=markdown::$comment"
 
       - name: Comment on PR
