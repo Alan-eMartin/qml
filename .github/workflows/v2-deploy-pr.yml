@@ -82,8 +82,6 @@ jobs:
       pr_ref_name: ${{ steps.set_job_outputs.outputs.pr_ref_name }}
       updated_demos: ${{ steps.set_job_outputs.outputs.updated_demos }}
       deleted_demos: ${{ steps.set_job_outputs.outputs.deleted_demos }}
-  
-  
 
   generate-comment:
     runs-on: ubuntu-latest
