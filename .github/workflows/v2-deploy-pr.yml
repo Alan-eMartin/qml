@@ -83,44 +83,28 @@ jobs:
       updated_demos: ${{ steps.set_job_outputs.outputs.updated_demos }}
       deleted_demos: ${{ steps.set_job_outputs.outputs.deleted_demos }}
 
-  # upsert-demos:
-  #   uses: ./.github/workflows/v2-deploy-demos.yml
-  #   needs: prepare-build-context
-  #   with:
-  #     environment: 'swc-staging'
-  #     preview: true
-  #     branch: ${{ needs.prepare-build-context.outputs.pr_ref_name }}
-  #     artifact-name: demo-build-${{ needs.prepare-build-context.outputs.pr_ref }}
-  #   secrets: inherit
-
   post-pr-comment:
     runs-on: ubuntu-latest
     needs: prepare-build-context
     if: needs.prepare-build-context.outputs != '' && github.event.workflow_run.event == 'pull_request'
     steps:
-      - name: Create demo links comment
-        id: create-demo-links
-        run: |
-          updated_demos="${{ needs.prepare-build-context.outputs.updated_demos }}"
-          
-          echo "## Demo Preview(s)" > comment.md
-          echo "<details>" >> comment.md
-          echo "<summary>Click to expand</summary>" >> comment.md
-          echo "" >> comment.md
-          
-          for demo in $updated_demos; do
-            echo "- [${demo}](https://demos.example.com/${demo})" >> comment.md
-          done
-
-          echo "" >> comment.md
-          echo "</details>" >> comment.md
-          
       - name: Comment on PR
         id: comment-on-pr
         uses: XanaduAI/cloud-actions/create-and-update-pull-request-comment@main
+        if: needs.prepare-build-context.outputs.updated_demos != ''
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pull_request_number: ${{ needs.prepare-build-context.outputs.pr_id }}
           comment_body: |
-            ${{ steps.create-demo-links.outputs.comment }}
-            
+            ## Updated Demos
+            {% set updated_demos_list = needs.prepare-build-context.outputs.updated_demos.split() %}
+            {% if updated_demos_list %}
+            {% for demo in updated_demos_list %}
+            - [{{ demo }}](https://pennylane.ai/qml/demos/{{ demo }}?preview=true)
+            {% endfor %}
+            {% else %}
+            No demos were updated.
+            {% endif %}
+
+            ## Deleted Demos
+            ${{ needs.prepare-build-context.outputs.deleted_demos }}
