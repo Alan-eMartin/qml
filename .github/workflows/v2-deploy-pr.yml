@@ -9,7 +9,7 @@ on:
 
 permissions:
   actions: read
-  pull-requests: write # Required to post comments
+  pull-requests: write
   contents: read
 
 concurrency:
@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  prepare-build-context:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success'
     steps:
@@ -39,8 +39,7 @@ jobs:
 
       - name: Unpack Build Information
         if: steps.build_context.outputs.result != ''
-        run: |
-          unzip ${{ steps.build_context.outputs.result }}
+        run: unzip ${{ steps.build_context.outputs.result }}
 
       - name: Read Build Information
         id: read_build_info
@@ -48,50 +47,48 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            let fs = require('fs');
-            const buildData = fs.readFileSync('pr_info.json');
+            const fs = require('fs');
+            const buildData = fs.readFileSync('pr_info.json', 'utf8');
             return JSON.parse(buildData);
 
       - name: Parse Pull Request Event Information
         id: pr_info
         if: github.event.workflow_run.event == 'pull_request' && steps.build_context.outputs.result != ''
         run: |
-          PR_ID=$(echo '${{ steps.read_build_info.outputs.result }}' | jq '.id')
-          PR_ID_NO_QUOTE="${PR_ID%\"}"
-          PR_ID_NO_QUOTE="${PR_ID_NO_QUOTE#\"}"
-          echo "pr_id => $PR_ID_NO_QUOTE"
-          echo "pr_id=$PR_ID_NO_QUOTE" >> $GITHUB_OUTPUT
+          echo '${{ steps.read_build_info.outputs.result }}' | jq -r '.id' > pr_id.txt
+          echo '${{ steps.read_build_info.outputs.result }}' | jq -r '.ref' > pr_ref.txt
+          echo '${{ steps.read_build_info.outputs.result }}' | jq -r '.ref_name' > pr_ref_name.txt
+          echo '${{ steps.read_build_info.outputs.result }}' | jq -c '.updated_demos' > updated_demos.json
+          echo '${{ steps.read_build_info.outputs.result }}' | jq -c '.deleted_demos' > deleted_demos.json
 
-          PR_REF=$(echo '${{ steps.read_build_info.outputs.result }}' | jq '.ref')
-          PR_REF_NO_QUOTE="${PR_REF%\"}"
-          PR_REF_NO_QUOTE="${PR_REF_NO_QUOTE#\"}"
-          echo "pr_ref => $PR_REF_NO_QUOTE"
-          echo "pr_ref=$PR_REF_NO_QUOTE" >> $GITHUB_OUTPUT
-          
-          PR_REF_NAME=$(echo '${{ steps.read_build_info.outputs.result }}' | jq '.ref_name')
-          PR_REF_NAME_NO_QUOTE="${PR_REF_NAME%\"}"
-          PR_REF_NAME_NO_QUOTE="${PR_REF_NAME_NO_QUOTE#\"}"
-          echo "pr_ref_name => $PR_REF_NAME_NO_QUOTE"
-          echo "pr_ref_name=$PR_REF_NAME_NO_QUOTE" >> $GITHUB_OUTPUT
+          echo "pr_id=$(cat pr_id.txt)" >> $GITHUB_OUTPUT
+          echo "pr_ref=$(cat pr_ref.txt)" >> $GITHUB_OUTPUT
+          echo "pr_ref_name=$(cat pr_ref_name.txt)" >> $GITHUB_OUTPUT
+          echo "updated_demos=$(cat updated_demos.json)" >> $GITHUB_OUTPUT
+          echo "deleted_demos=$(cat deleted_demos.json)" >> $GITHUB_OUTPUT
 
-          UPDATED_DEMOS=$(echo '${{ steps.read_build_info.outputs.result }}' | jq '.updated_demos')
-          DELETED_DEMOS=$(echo '${{ steps.read_build_info.outputs.result }}' | jq '.deleted_demos')
-          echo "updated_demos => $UPDATED_DEMOS"
-          echo "deleted_demos => $DELETED_DEMOS"
-
-      - name: Upsert demos
-        uses: ./.github/workflows/v2-deploy-demos.yml
-        with:
-          environment: 'swc-staging' # Update this to production later if needed
-          artifact-name: demo-build-${{ steps.pr_info.outputs.pr_ref }}
-          preview: true
-          branch: ${{ steps.pr_info.outputs.pr_ref_name }}
-          secrets: inherit
-
-      - name: log updated and deleted demos for testing
+      - name: Set job outputs
+        if: github.event.workflow_run.event == 'pull_request' && steps.build_context.outputs.result != ''
+        id: set_job_outputs
         run: |
-          echo "Updated Demos: ${{ steps.pr_info.outputs.updated_demos }}"
-          echo "Deleted Demos: ${{ steps.pr_info.outputs.deleted_demos }}"
-          echo "PR ID: ${{ steps.pr_info.outputs.pr_id }}"
-          echo "PR Ref: ${{ steps.pr_info.outputs.pr_ref }}"
-          echo "PR Ref Name: ${{ steps.pr_info.outputs.pr_ref_name }}"
+          echo "pr_id=${{ steps.pr_info.outputs.pr_id }}" >> $GITHUB_OUTPUT
+          echo "pr_ref=${{ steps.pr_info.outputs.pr_ref }}" >> $GITHUB_OUTPUT
+          echo "pr_ref_name=${{ steps.pr_info.outputs.pr_ref_name }}" >> $GITHUB_OUTPUT
+          echo "updated_demos=${{ steps.pr_info.outputs.updated_demos }}" >> $GITHUB_OUTPUT
+          echo "deleted_demos=${{ steps.pr_info.outputs.deleted_demos }}" >> $GITHUB_OUTPUT
+    outputs:
+      pr_id: ${{ steps.set_job_outputs.outputs.pr_id }}
+      pr_ref: ${{ steps.set_job_outputs.outputs.pr_ref }}
+      pr_ref_name: ${{ steps.set_job_outputs.outputs.pr_ref_name }}
+      updated_demos: ${{ steps.set_job_outputs.outputs.updated_demos }}
+      deleted_demos: ${{ steps.set_job_outputs.outputs.deleted_demos }}
+
+  upsert-demos:
+    uses: ./.github/workflows/v2-deploy-demos.yml
+    needs: prepare-build-context
+    with:
+      environment: 'swc-staging'
+      preview: true
+      branch: ${{ needs.prepare-build-context.outputs.pr_ref_name }}
+      artifact-name: demo-build-${{ needs.prepare-build-context.outputs.pr_ref }}
+    secrets: inherit
