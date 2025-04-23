@@ -77,4 +77,4 @@ jobs:
         with:
           name: pr_info
           path: /tmp/pr
-          retention-days: 30
+          retention-days: 31
