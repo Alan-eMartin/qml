@@ -20,8 +20,7 @@ on:
         required: true
         type: choice
       demos:
-        default: all
-        description: Demos to build and deploy (space-separated string e.g. "demo1 demo2") or "all" for all demos
+        description: Demos to build and deploy, if all demos are to be built leave blank
         required: false
         type: string
       as-previews:
@@ -36,8 +35,7 @@ jobs:
     uses: ./.github/workflows/v2-build-demos.yml
     with:
       ref: ${{ github.event.inputs.branch }}
-      demo-names: |
-        [ "${{ github.event.inputs.demos }}" == "all" ] && echo "" || echo "${{ github.event.inputs.demos }}"
+      demo-names: ${{ github.event.inputs.demos }}
       dev: ${{ github.event.inputs.branch == 'dev' }}
       save-artifact: true
       artifact-name: build-and-deploy-${{ github.event.inputs.branch }}
@@ -47,7 +45,6 @@ jobs:
 
   deploy:
     uses: ./.github/workflows/v2-deploy-demos.yml
-    needs: build
     with:
       environment: ${{ github.event.inputs.environment }}
       artifact-name: build-and-deploy-${{ github.event.inputs.branch }}
