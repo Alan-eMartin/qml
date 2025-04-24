@@ -5,28 +5,32 @@ on:
     inputs:
       environment:
         description: SWC environment to deploy to
-        type: choice
-        required: true
         options:
           - swc-staging
           - swc-prod
           - swc-dev
-      as-previews:
-        description: Whether to deploy demos as preview
-        type: boolean
         required: true
-        default: false
+        type: choice
       branch:
-        description: Branch to build and deploy
-        type: string
-        required: false
-        default: v2 # Change to main or dev
+        default: master
+        description: Branch to build demos against `master` (stable) or `dev` (latest)
+        options:
+          - master
+          - dev
+        required: true
+        type: choice
       demos:
+        default: all
         description: Demos to build and deploy (space-separated string)
-        type: string
         required: false
-        default: all # Change to specific demo names if needed
-    
+        type: string
+      as-previews:
+        default: false
+        description: Whether to deploy demos as preview
+        required: true
+        type: boolean
+
+
 jobs:
   build:
     uses: ./.github/workflows/v2-build-demos.yml
