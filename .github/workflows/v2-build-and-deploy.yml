@@ -21,7 +21,7 @@ on:
         type: choice
       demos:
         default: all
-        description: Demos to build and deploy (space-separated string)
+        description: Demos to build and deploy (space-separated string e.g. "demo1 demo2") or "all" for all demos
         required: false
         type: string
       as-previews:
