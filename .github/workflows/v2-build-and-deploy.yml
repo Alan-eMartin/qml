@@ -27,7 +27,7 @@ on:
         default: false
         description: |
           Whether to deploy the demos as previews.
-           
+
           **Please note** that demos built with the latest version cannot be published to swc-staging or swc-prod.
           They can only be deployed as previews.
         required: false
@@ -59,9 +59,12 @@ jobs:
             "${{ github.event.inputs.target }}" == "latest" && 
             "${{ github.event.inputs.as-previews }}" == "false" 
           ]]; then
-            echo ":x: Invalid input: Demos built with the latest version cannot be published to swc-staging or swc-prod."
+            echo "========================="
+            echo "🚫 Invalid input detected:"
+            echo "Demos built with the latest version cannot be published to 'swc-staging' or 'swc-prod'."
             echo "They can only be deployed as previews."
-            echo "Please set the 'as-previews' input to true."
+            echo "Please set the 'as-previews' input to 'true' in your workflow configuration."
+            echo "========================="
             exit 1
           fi
 
