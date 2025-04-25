@@ -2,7 +2,7 @@ r"""
 .. role:: html(raw)
    :format: html
 
-Quantum advantage with Gaussian Boson Samplings
+Quantum advantage with Gaussian Boson Sampling
 ==============================================
 
 .. meta::
@@ -18,9 +18,7 @@ Quantum advantage with Gaussian Boson Samplings
     qonn Optimizing a quantum optical neural network
     tutorial_photonics Photonic quantum computers
 
-*Authors: Josh Izaac and Nathan Killoran — Posted: 04 December 2020. Last updated: 04 December 2020.*]
-
-I am a new line
+*Authors: Josh Izaac and Nathan Killoran — Posted: 04 December 2020. Last updated: 04 December 2020.*
 
 .. warning::
     This demo is only compatible with PennyLane version ``0.29`` or below.
