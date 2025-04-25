@@ -61,7 +61,9 @@ jobs:
             "${{ github.event.inputs.target }}" == "latest" && 
             "${{ github.event.inputs.as-previews }}" == "false" 
           ]]; then
-            echo "error=Invalid input: latest version cannot be deployed to swc-staging or swc-prod without preview." >> $GITHUB_ENV
+            echo ":x: Invalid input: Demos built with the latest version cannot be published to swc-staging or swc-prod."
+            echo "They can only be deployed as previews."
+            echo "Please set the 'as-previews' input to true."
             exit 1
           fi
 
