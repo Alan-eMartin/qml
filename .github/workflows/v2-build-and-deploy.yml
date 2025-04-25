@@ -27,9 +27,9 @@ on:
         default: false
         description: |
           Whether to deploy demos as previews or publish them.
-
+          \n\n
           If true, the demos will be deployed as previews.
-
+          \n\n
           Note: Demos built with the latest version cannot be published to swc-prod or swc-staging and will default to previews.
           Only swc-dev allows publishing demos with the latest version for testing purposes.
         required: false
